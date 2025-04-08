@@ -4,39 +4,42 @@ import os
 import ldclient
 from ldclient import Context
 from ldclient.config import Config
+from ldclient.interfaces import FlagValueChangeListener
 
 # --- LaunchDarkly Setup ---
 sdk_key = os.getenv("LAUNCHDARKLY_SDK_KEY")
-feature_flag_key = "enable-inflation-adjustment"
+flag_key = "enable-inflation-adjustment"
 
 if not sdk_key:
-    st.error("LaunchDarkly SDK key is not set. Please set the LAUNCHDARKLY_SDK_KEY environment variable.")
+    st.error("Missing LAUNCHDARKLY_SDK_KEY environment variable.")
     st.stop()
 
 ldclient.set_config(Config(sdk_key))
 ld = ldclient.get()
 
 if not ld.is_initialized():
-    st.error("LaunchDarkly SDK failed to initialize.")
+    st.error("LaunchDarkly failed to initialize.")
     st.stop()
 
-# Create context
-context = Context.builder('retirement-user').kind('user').name('Sandy').build()
+# --- Define context ---
+context = Context.builder("retirement-user").kind("user").name("Sandy").build()
 
-# Store flag in session state to allow updates via listener
-if 'enable_inflation' not in st.session_state:
-    st.session_state.enable_inflation = ld.variation(feature_flag_key, context, False)
+# --- Flag Listener Class ---
+class InflationFlagChangeListener(FlagValueChangeListener):
+    def __init__(self, flag_key):
+        self.flag_key = flag_key
 
-# --- Listener Function ---
-def flag_listener(flag_key):
-    def callback(flag_value):
-        if flag_key == feature_flag_key:
-            st.session_state.enable_inflation = flag_value
-            st.experimental_rerun()  # Automatically update app
-    return callback
+    def on_flag_value_change(self, key, old_value, new_value):
+        if key == self.flag_key:
+            st.session_state.enable_inflation = new_value
+            st.experimental_rerun()
 
-# Attach listener
-ld.register_feature_flag_listener(feature_flag_key, flag_listener(feature_flag_key))
+# --- Register Listener ---
+if "enable_inflation" not in st.session_state:
+    st.session_state.enable_inflation = ld.variation(flag_key, context, False)
+
+listener = InflationFlagChangeListener(flag_key)
+ld.register_feature_flag_listener(flag_key, listener)
 
 # --- App Logic ---
 def calculate_annual_savings(future_value, annual_rate, years):
@@ -75,7 +78,7 @@ if st.session_state.enable_inflation:
 else:
     st.markdown("ℹ️ Inflation adjustment is DISABLED (via LaunchDarkly)")
 
-# Calculation
+# --- Perform Calculation ---
 if st.button("Calculate"):
     annual_savings = calculate_annual_savings(adjusted_target, annual_rate, years)
     st.success(f"✅ Save **${annual_savings:,.2f}** per year to reach ${target:,.2f} in {years} years.")
