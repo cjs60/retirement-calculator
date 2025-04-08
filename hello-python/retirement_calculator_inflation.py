@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import os
 import ldclient
+from threading import Lock, Event
 from ldclient import Context
 from ldclient.config import Config
 
@@ -25,20 +26,24 @@ context = Context.builder("retirement-user").kind("user").name("Sandy").build()
 
 # --- Flag Listener Class ---
 class FlagValueChangeListener:
-    def InflationFlagChangeListener(self, flag_key):
+    def __init__(self, flag_key):
         self.flag_key = flag_key
+        self.__lock = Lock()
 
-    def on_flag_value_change(self, key, old_value, new_value):
-        if key == self.flag_key:
-            st.session_state.enable_inflation = new_value
-            st.experimental_rerun()
+    def on_flag_value_change(self, flag_change):
+        with self.__lock:
+            if self.flag_key and flag_change.new_value:
+                st.session_state.enable_inflation = flag_change.new_value
+                st.experimental_rerun()
 
 # --- Register Listener ---
+# Ensure the 'enable_inflation' flag is initialized in the session state to avoid KeyError during access.
 if "enable_inflation" not in st.session_state:
+    # Set the default value for the flag to False if not explicitly set in LaunchDarkly
     st.session_state.enable_inflation = ld.variation(flag_key, context, False)
 
-listener = FlagValueChangeListener(flag_key)
-ld.register_feature_flag_listener(flag_key, listener)
+listener = FlagValueChangeListener(flag_key=flag_key)
+ld.variation(flag_key, context, False)
 
 # --- App Logic ---
 def calculate_annual_savings(future_value, annual_rate, years):
