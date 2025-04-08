@@ -25,7 +25,7 @@ context = Context.builder("retirement-user").kind("user").name("Sandy").build()
 
 # --- Flag Listener Class ---
 class FlagValueChangeListener:
-    def __init__(self, flag_key):
+    def InflationFlagChangeListener(self, flag_key):
         self.flag_key = flag_key
 
     def on_flag_value_change(self, key, old_value, new_value):
@@ -37,7 +37,7 @@ class FlagValueChangeListener:
 if "enable_inflation" not in st.session_state:
     st.session_state.enable_inflation = ld.variation(flag_key, context, False)
 
-listener = InflationFlagChangeListener(flag_key)
+listener = FlagValueChangeListener(flag_key)
 ld.register_feature_flag_listener(flag_key, listener)
 
 # --- App Logic ---
