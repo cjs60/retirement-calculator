@@ -8,7 +8,7 @@ from threading import Lock, Event
 
 # 🌐 Initialize LaunchDarkly client
 LD_SDK_KEY = os.getenv("LD_SDK_KEY")  # Store this in an environment variable
-ld_client = LDClient(LD_SDK_KEY)
+ld_client = ldclient.set_config(Config(LD_SDK_KEY))
 
 # 👤 Identify the user (could be dynamic based on login)
 ld_user = Context.builder("retirement_user").name("Retirement User").build()
