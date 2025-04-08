@@ -4,7 +4,6 @@ import os
 import ldclient
 from ldclient import Context
 from ldclient.config import Config
-from ldclient.interfaces import FlagValueChangeListener
 
 # --- LaunchDarkly Setup ---
 sdk_key = os.getenv("LAUNCHDARKLY_SDK_KEY")
@@ -25,7 +24,7 @@ if not ld.is_initialized():
 context = Context.builder("retirement-user").kind("user").name("Sandy").build()
 
 # --- Flag Listener Class ---
-class InflationFlagChangeListener(FlagValueChangeListener):
+class FlagValueChangeListener:
     def __init__(self, flag_key):
         self.flag_key = flag_key
 
