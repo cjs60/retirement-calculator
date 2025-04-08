@@ -20,9 +20,23 @@ if not ld.is_initialized():
     st.error("LaunchDarkly SDK failed to initialize.")
     st.stop()
 
-# Define context
+# Create context
 context = Context.builder('retirement-user').kind('user').name('Sandy').build()
-ENABLE_INFLATION_ADJUSTMENT = ld.variation(feature_flag_key, context, False)
+
+# Store flag in session state to allow updates via listener
+if 'enable_inflation' not in st.session_state:
+    st.session_state.enable_inflation = ld.variation(feature_flag_key, context, False)
+
+# --- Listener Function ---
+def flag_listener(flag_key):
+    def callback(flag_value):
+        if flag_key == feature_flag_key:
+            st.session_state.enable_inflation = flag_value
+            st.experimental_rerun()  # Automatically update app
+    return callback
+
+# Attach listener
+ld.register_feature_flag_listener(feature_flag_key, flag_listener(feature_flag_key))
 
 # --- App Logic ---
 def calculate_annual_savings(future_value, annual_rate, years):
@@ -49,9 +63,9 @@ annual_rate = rate_percent / 100
 
 adjusted_target = target
 
-# Only show inflation option if flag is ON
-if ENABLE_INFLATION_ADJUSTMENT:
-    st.markdown("🚩 Inflation adjustment is ENABLED via LaunchDarkly")
+# Conditionally show inflation options
+if st.session_state.enable_inflation:
+    st.markdown("🚩 Inflation adjustment is ENABLED (via LaunchDarkly)")
     adjust_for_inflation = st.checkbox("Adjust for Inflation")
     if adjust_for_inflation:
         inflation_percent = st.slider("Expected Inflation Rate (%)", 0.0, 10.0, 2.5)
@@ -59,7 +73,7 @@ if ENABLE_INFLATION_ADJUSTMENT:
         adjusted_target = target / ((1 + inflation_rate) ** years)
         st.markdown(f"🎯 Inflation-adjusted target: **${adjusted_target:,.2f}**")
 else:
-    st.markdown("ℹ️ Inflation adjustment is DISABLED via LaunchDarkly.")
+    st.markdown("ℹ️ Inflation adjustment is DISABLED (via LaunchDarkly)")
 
 # Calculation
 if st.button("Calculate"):
