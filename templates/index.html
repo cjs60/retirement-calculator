@@ -31,6 +31,10 @@
             top: -5px;
             right: -5px;
         }
+        .disabled-input {
+            background-color: #e9ecef;
+            cursor: not-allowed;
+        }
     </style>
 </head>
 <body>
@@ -65,8 +69,8 @@
                     </div>
                     <div class="col-md-6 mb-3 position-relative">
                         <label for="inflationRate" class="form-label">Inflation Rate (%)</label>
-                        <input type="number" class="form-control" id="inflationRate" step="0.1" required>
-                        <span class="badge bg-info feature-flag-badge" id="inflationFlagBadge">Feature Flag</span>
+                        <input type="number" class="form-control" id="inflationRate" step="0.1" value="2.0" required>
+                        <span class="badge bg-secondary feature-flag-badge" id="inflationFlagBadge">Feature Disabled</span>
                     </div>
                 </div>
                 <div class="row">
@@ -101,16 +105,28 @@
 
     <script>
         // Function to update inflation rate input based on feature flag status
-        function updateInflationInput(enabled) {
+        function updateInflationInput(enabled, error = null) {
             const inflationInput = document.getElementById('inflationRate');
             const inflationBadge = document.getElementById('inflationFlagBadge');
             
+            if (error) {
+                inflationInput.disabled = true;
+                inflationInput.classList.add('disabled-input');
+                inflationInput.value = '2.0';
+                inflationBadge.className = 'badge bg-danger feature-flag-badge';
+                inflationBadge.textContent = 'Error';
+                console.error('Feature flag error:', error);
+                return;
+            }
+            
             if (enabled) {
                 inflationInput.disabled = false;
+                inflationInput.classList.remove('disabled-input');
                 inflationBadge.className = 'badge bg-success feature-flag-badge';
                 inflationBadge.textContent = 'Feature Enabled';
             } else {
                 inflationInput.disabled = true;
+                inflationInput.classList.add('disabled-input');
                 inflationInput.value = '2.0';
                 inflationBadge.className = 'badge bg-secondary feature-flag-badge';
                 inflationBadge.textContent = 'Feature Disabled';
@@ -122,11 +138,15 @@
             try {
                 const response = await fetch('/check-feature-flag');
                 const data = await response.json();
-                updateInflationInput(data.inflation_enabled);
+                
+                if (response.ok) {
+                    updateInflationInput(data.inflation_enabled);
+                } else {
+                    updateInflationInput(false, data.error);
+                }
             } catch (error) {
                 console.error('Error checking feature flag:', error);
-                // Default to disabled if there's an error
-                updateInflationInput(false);
+                updateInflationInput(false, 'Failed to check feature flag status');
             }
         }
 
